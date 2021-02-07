@@ -34,6 +34,7 @@ func (bh *BlogHead) compile(p string) error {
 	if err != nil {
 		return err
 	}
+	defer out.Close()
 
 	data, err := getTemplateData(p)
 	if err != nil {
@@ -60,6 +61,7 @@ func (bh *BlogHead) gatherTemplates(p string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	re := regexp.MustCompile("{{\\s*template\\s*\"([-_./\\w ]+)\"\\s*([.$\\w]+)?\\s*}}")
 
@@ -82,7 +84,7 @@ func (bh *BlogHead) gatherTemplates(p string) ([]string, error) {
 }
 
 // Creates a file and any directories on the path that don't currently exist.
-// Returns the newly opened file
+// Returns the newly opened file. The caller must close the file
 func createFile(p string) (*os.File, error) {
 	dir := path.Dir(p)
 	if err := os.MkdirAll(dir, 0744); err != nil {
@@ -102,6 +104,8 @@ func createFile(p string) (*os.File, error) {
 func getTemplateData(p string) (map[string]interface{}, error) {
 	// Trim .html extension from name
 	if f, err := os.Open(p[:len(p)-5] + "_meta.json"); err == nil {
+		defer f.Close()
+
 		d, err := ioutil.ReadAll(f)
 		if err != nil {
 			return nil, err

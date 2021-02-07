@@ -16,23 +16,24 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
 )
 
 // addCmd represents the add command
 var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "add [type] [blueprint name] [page name]",
+	Short: "Add a new page to your site",
+	Long: `A new page can be added from a bloghead default or a custom default.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+The first argument is the type of page to add. Second argument is the name of the
+blueprint to copy from, and the final argument is the name of the new page (the .html 
+extension will be added automatically.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("add called")
+		bh := internal.FromEnv()
+		if err := bh.Add(args[0], args[1], args[2]); err != nil {
+			println(err.Error())
+		}
 	},
 }
 

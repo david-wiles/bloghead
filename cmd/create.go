@@ -16,32 +16,20 @@ limitations under the License.
 package cmd
 
 import (
-	"errors"
 	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
 )
 
-// createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "create [type] [name]",
+	Short: "Create a new custom template page",
+	Long: `New templates must be of a predefined type. 
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return errors.New("Requires type and name arguments")
-		} else if len(args) == 1 {
-			return errors.New("Requires a name argument")
-		}
-		return nil
-	},
+The type argument specifies the type of template and the name argument
+specifies the name of the template. When using the template to create
+a new page, the name will be used to specify the template.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		bh := internal.FromEnv()
-
 		if err := bh.Create(args[0], args[1]); err != nil {
 			println(err.Error())
 		}
@@ -50,14 +38,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(createCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// createCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

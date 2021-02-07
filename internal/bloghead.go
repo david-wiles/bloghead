@@ -77,12 +77,12 @@ func (bh *BlogHead) Start() error {
 			return err
 		}
 
-		if bh.isHTMLPage(p, info) {
-			absPath, err := filepath.Abs(p)
-			if err != nil {
-				return err
-			}
+		absPath, err := filepath.Abs(p)
+		if err != nil {
+			return err
+		}
 
+		if bh.isHTMLPage(absPath, info) {
 			if err := bh.compile(absPath); err != nil {
 				return err
 			}
@@ -183,15 +183,12 @@ func (bh *BlogHead) watchFiles() {
 //   2: is not a directory
 //   3: is not in the templates directory or one of its subdirectories
 func (bh *BlogHead) isHTMLPage(p string, info os.FileInfo) bool {
-	absDir, err := filepath.Abs(path.Dir(p))
-	if err != nil {
-		return false
-	}
-
 	return len(info.Name()) > 5 &&
 		p[len(p)-5:] == ".html" &&
 		!info.IsDir() &&
-		absDir != bh.tmplDir
+		// If the trimmed path is equal to the original path,
+		// then the template directory is not a parent directory of the file
+		trimPath(bh.tmplDir, p) == p
 }
 
 func (bh *BlogHead) saveDependencies(p string, templates ...string) {

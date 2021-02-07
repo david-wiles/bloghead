@@ -19,6 +19,7 @@ func ReadConfig(filename string) (*BlogConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	bc := &BlogConfig{}
 	decoder := json.NewDecoder(f)
@@ -34,6 +35,7 @@ func SaveConfig(config *BlogConfig, filename string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	encoder := json.NewEncoder(f)
 	if err := encoder.Encode(config); err != nil {

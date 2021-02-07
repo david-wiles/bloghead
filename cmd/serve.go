@@ -22,7 +22,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Starts a file server using the output directory as root, listening on localhost:8081",
