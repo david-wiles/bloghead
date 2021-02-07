@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
+Copyright © 2021 David Wiles david@wiles.fyi
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	publishCmd.Flags().BoolVarP(&watch, "watch", "w", false, "Watch files for changes")
+	publishCmd.Flags().BoolVarP(&watch, "watch", "w", false, "--watch, -w. Watch files for changes")
 
 	rootCmd.AddCommand(publishCmd)
 

@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 NAME HERE <EMAIL ADDRESS>
+Copyright © 2021 David Wiles david@wiles.fyi
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
+	"errors"
+	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -31,8 +31,20 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return errors.New("Requires type and name arguments")
+		} else if len(args) == 1 {
+			return errors.New("Requires a name argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("create called")
+		bh := internal.FromEnv()
+
+		if err := bh.Create(args[0], args[1]); err != nil {
+			println(err.Error())
+		}
 	},
 }
 

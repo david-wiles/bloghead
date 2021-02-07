@@ -14,6 +14,11 @@ type BlogHead struct {
 	Output  string
 	tmplDir string
 
+	// Configuration file for the site created by this bloghead
+	// This file also stores the state of the site
+	configFile string
+	config     *BlogConfig
+
 	// Templates is a map of each template and the templates is is used in.
 	// When running in watch mode, this is used to determine which files to watch
 	templates map[string][]string
@@ -37,12 +42,31 @@ func FromEnv() *BlogHead {
 		panic(err)
 	}
 
-	return &BlogHead{
-		Root:      rootPath,
-		Output:    outPath,
-		tmplDir:   path.Join(rootPath, ".templates"),
-		templates: make(map[string][]string),
+	config, err := ReadConfig(viper.ConfigFileUsed())
+	if err != nil {
+		panic(err)
 	}
+
+	return &BlogHead{
+		Root:       rootPath,
+		Output:     outPath,
+		tmplDir:    path.Join(rootPath, ".templates"),
+		configFile: viper.ConfigFileUsed(),
+		config:     config,
+		templates:  make(map[string][]string),
+	}
+}
+
+func Init(root, output, filename string) error {
+	// Write a blank config file
+	if err := SaveConfig(&BlogConfig{
+		Root:       root,
+		Output:     output,
+		Blueprints: make(map[string]string),
+	}, filename); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Start compiling pages found in the root directory
@@ -184,6 +208,7 @@ func (bh *BlogHead) saveDependencies(p string, templates ...string) {
 // Walk through each page dependent page on p and call the walkFn
 // for each page, including p
 func (bh *BlogHead) walkDependencies(p string, walkFn func(p string) error) error {
+	// TODO detect circular dependencies
 	if deps, ok := bh.templates[p]; ok {
 		for _, dep := range deps {
 			if err := walkFn(dep); err != nil {

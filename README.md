@@ -25,5 +25,5 @@ Available commands:
   add       Add a new bloghead element (template, datatype)
   create    Create a new page
   publish   Build the static site 
-
+  serve     Start a fileserver at the root directory
 ```
