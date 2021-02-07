@@ -9,9 +9,20 @@ import (
 // initialize the bh instance. This file also contains saved
 // state for the site, such as blueprint file paths sss
 type BlogConfig struct {
-	Root       string            `json:"root"`
-	Output     string            `json:"output"`
+	// filesystem data
+	Root   string `json:"root"`
+	Output string `json:"output"`
+
+	// author and site data
+	Author   string
+	Email    string
+	Domain   string
+	Title    string
+	SubTitle string
+
+	// meta data used within bloghead
 	Blueprints map[string]string `json:"blueprints"`
+	Articles   []string          `json:"articles"`
 }
 
 func ReadConfig(filename string) (*BlogConfig, error) {

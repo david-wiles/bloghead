@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
 )
@@ -29,6 +30,16 @@ var addCmd = &cobra.Command{
 The first argument is the type of page to add. Second argument is the name of the
 blueprint to copy from, and the final argument is the name of the new page (the .html 
 extension will be added automatically.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return errors.New("Requires type, template, and name arguments")
+		} else if len(args) == 1 {
+			return errors.New("Requires template and name arguments")
+		} else if len(args) == 2 {
+			return errors.New("Requires name argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		bh := internal.FromEnv()
 		if err := bh.Add(args[0], args[1], args[2]); err != nil {

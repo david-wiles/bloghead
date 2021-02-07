@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
 )
@@ -28,6 +29,14 @@ var createCmd = &cobra.Command{
 The type argument specifies the type of template and the name argument
 specifies the name of the template. When using the template to create
 a new page, the name will be used to specify the template.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return errors.New("Requires type and name arguments")
+		} else if len(args) == 1 {
+			return errors.New("Requires a name argument")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		bh := internal.FromEnv()
 		if err := bh.Create(args[0], args[1]); err != nil {

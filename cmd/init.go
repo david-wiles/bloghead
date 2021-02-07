@@ -16,16 +16,15 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"github.com/david-wiles/bloghead/internal"
 	"github.com/spf13/cobra"
+	"os"
 	"path"
 )
 
-var root string
-var output string
-
 var initCmd = &cobra.Command{
-	Use:   "init [folder?]",
+	Use:   "init",
 	Short: "Initialize a new site in the specified directory",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFile := ".bloghead"
@@ -33,15 +32,22 @@ var initCmd = &cobra.Command{
 			configFile = path.Join(args[0], ".bloghead")
 		}
 
-		if err := internal.Init(root, output, configFile); err != nil {
-			panic(err)
+		_, err := os.Stat(configFile)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := internal.Init(configFile); err != nil {
+					panic(err)
+				}
+			} else {
+				panic(err)
+			}
+		} else {
+			_, _ = fmt.Fprintf(os.Stdout, "Configuration already exists at %v. Delete it to create a new one, or use "+
+				"init in a different directory\n", configFile)
 		}
 	},
 }
 
 func init() {
-	initCmd.Flags().StringVarP(&root, "root", "r", "html", "--root [directory], -r [directory]. Root directory for html files")
-	initCmd.Flags().StringVarP(&output, "output", "o", "www", "--output [directory], -o [directory]. Output directory for geneated files")
-
 	rootCmd.AddCommand(initCmd)
 }

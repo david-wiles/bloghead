@@ -17,6 +17,7 @@ func TestBlogHead_Add(t *testing.T) {
 	}
 	type args struct {
 		typ  string
+		name string
 		path string
 	}
 	tests := []struct {
@@ -38,7 +39,7 @@ func TestBlogHead_Add(t *testing.T) {
 				templates:  tt.fields.templates,
 				watcher:    tt.fields.watcher,
 			}
-			if err := bh.Add(tt.args.typ, tt.args.path); (err != nil) != tt.wantErr {
+			if err := bh.Add(tt.args.typ, tt.args.name, tt.args.path); (err != nil) != tt.wantErr {
 				t.Errorf("Add() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

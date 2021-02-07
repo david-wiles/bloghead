@@ -1,11 +1,13 @@
 package internal
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 )
 
 // Saves the current state of the site
@@ -67,15 +69,21 @@ func (bh *BlogHead) Add(typ, name, p string) (err error) {
 	switch typ {
 	case "page":
 		err = bh.addNewPage(name, path.Join(bh.Root, p+".html"))
+	case "article":
+		err = bh.addNewArticle(name, path.Join(bh.Root, p+".html"))
 	default:
 		errorStr := `Unknown type %v. Valid types are:
 
 page - creates a new page at the specified path using the specified blueprint`
 		err = errors.New(fmt.Sprintf(errorStr, typ))
 	}
+	if err := bh.Save(); err != nil {
+		return err
+	}
 	return err
 }
 
+// Creates a new generic web page based on the named template
 func (bh *BlogHead) addNewPage(name, p string) error {
 	// Check that a blueprint with the name exists
 	if _, ok := bh.config.Blueprints[name]; !ok {
@@ -110,5 +118,75 @@ func (bh *BlogHead) addNewPage(name, p string) error {
 	if _, err := f.Write(html); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Creates a new article based on the named template and adds the
+// page to a list of articles. When the site is published, this article's
+// content is added to a feed.xml file entry
+func (bh *BlogHead) addNewArticle(name, p string) error {
+	// Copy the html page from the template
+	if err := bh.addNewPage(name, p); err != nil {
+		return err
+	}
+
+	// Create a new meta.json for the page with date entries
+	if err := bh.addDefaultMeta(p); err != nil {
+		return err
+	}
+
+	if err := bh.createContentFile(p); err != nil {
+		return err
+	}
+
+	// Add the page to articles list
+	bh.config.Articles = appendUnique(bh.config.Articles, p)
+	return nil
+}
+
+func (bh *BlogHead) createContentFile(p string) error {
+	if err := os.MkdirAll(path.Join(bh.tmplDir, ".data", path.Base(p)), 0744); err != nil {
+		return err
+	}
+
+	// Create content.html file in .data
+	f, err := os.Create(path.Join(bh.tmplDir, ".data", path.Base(p), "content.html"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString("{{ define \"" + path.Join(".data", path.Base(p), "content.html") + "\" }}\n{{ end }}"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bh *BlogHead) addDefaultMeta(page string) error {
+	type defaultMeta struct {
+		Title   string `json:"title"`
+		Updated string `json:"updated"`
+		Link    string `json:"link"`
+	}
+
+	title := path.Base(page)
+	meta := &defaultMeta{title[:len(title)-5], time.Now().Format(time.RFC3339), bh.config.Domain + trimPath(bh.Root, page)}
+
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(page[:len(page)-5] + "_meta.json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.Write(b); err != nil {
+		return err
+	}
+
 	return nil
 }

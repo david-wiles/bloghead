@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"bufio"
+	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"os"
@@ -57,21 +59,92 @@ func FromEnv() *BlogHead {
 	}
 }
 
-func Init(root, output, filename string) error {
+func Init(filename string) error {
+	// Get init variables from user via prompt
+	var (
+		root     string = "./html"
+		output   string = "./www"
+		author   string
+		email    string
+		domain   string
+		title    string
+		subtitle string
+	)
+
+	scanner := bufio.NewScanner(os.Stdin)
+
+	if err := promptUser(scanner, &root, fmt.Sprintf("HTML root directory (default is %v): ", root)); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &output, fmt.Sprintf("Generated files output directory (default is %v): ", output)); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &author, "Site author: "); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &email, "Author's email: "); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &domain, "Site domain: "); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &title, "Site title: "); err != nil {
+		return err
+	}
+
+	if err := promptUser(scanner, &subtitle, "Site description: "); err != nil {
+		return err
+	}
+
 	// Write a blank config file
 	if err := SaveConfig(&BlogConfig{
 		Root:       root,
 		Output:     output,
+		Author:     author,
+		Email:      email,
+		Domain:     domain,
+		Title:      title,
+		SubTitle:   subtitle,
 		Blueprints: make(map[string]string),
+		Articles:   []string{},
 	}, filename); err != nil {
 		return err
 	}
+
+	if _, err := fmt.Fprintf(os.Stdout, "Configuration successfully written at %v. Happy coding!\n", filename); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func promptUser(scanner *bufio.Scanner, value *string, prompt string) error {
+	input := ""
+
+	if _, err := os.Stdout.WriteString(prompt); err != nil {
+		return err
+	}
+
+	scanner.Scan()
+	if input = scanner.Text(); input != "" {
+		*value = input
+	}
+
 	return nil
 }
 
 // Start compiling pages found in the root directory
 // Ignores the directory named '.templates'
 func (bh *BlogHead) Start() error {
+	if err := bh.writeFeed(); err != nil {
+		return err
+	}
+
 	return filepath.Walk(bh.Root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -83,7 +156,7 @@ func (bh *BlogHead) Start() error {
 		}
 
 		if bh.isHTMLPage(absPath, info) {
-			if err := bh.compile(absPath); err != nil {
+			if err := bh.compileAndWriteHTML(absPath); err != nil {
 				return err
 			}
 		}
@@ -137,6 +210,27 @@ func (bh *BlogHead) Watch() error {
 	return nil
 }
 
+// Compile a page at p and write to a file with the same relative path to output.
+// p must be an absolute path to the file
+func (bh *BlogHead) compileAndWriteHTML(p string) error {
+	out, err := createFile(path.Join(bh.Output, trimPath(bh.Root, p)))
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	b, err := bh.compile(p)
+	if err != nil {
+		return err
+	}
+
+	if _, err := out.Write(b); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (bh *BlogHead) watchFiles() {
 	for {
 		select {
@@ -156,7 +250,7 @@ func (bh *BlogHead) watchFiles() {
 						// If the trimmed path is equal to the original path, then the
 						// page is not in the template directory
 						if trimPath(bh.tmplDir, p) == p {
-							if err := bh.compile(p); err != nil {
+							if err := bh.compileAndWriteHTML(p); err != nil {
 								return err
 							}
 						}
@@ -183,8 +277,7 @@ func (bh *BlogHead) watchFiles() {
 //   2: is not a directory
 //   3: is not in the templates directory or one of its subdirectories
 func (bh *BlogHead) isHTMLPage(p string, info os.FileInfo) bool {
-	return len(info.Name()) > 5 &&
-		p[len(p)-5:] == ".html" &&
+	return path.Ext(p) == ".html" &&
 		!info.IsDir() &&
 		// If the trimmed path is equal to the original path,
 		// then the template directory is not a parent directory of the file

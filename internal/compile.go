@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"html/template"
 	"io/ioutil"
@@ -11,11 +12,11 @@ import (
 
 // Compiles the template located at path. Once the template has been created,
 // a corresponding file in the output folder will be created and written.
-func (bh *BlogHead) compile(p string) error {
+func (bh *BlogHead) compile(p string) ([]byte, error) {
 	// Get dependencies for the template and save to the BlogHead
 	templates, err := bh.gatherTemplates(p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	bh.saveDependencies(p, templates...)
@@ -25,20 +26,12 @@ func (bh *BlogHead) compile(p string) error {
 	// Create a new named template from the html file
 	t, err := template.New("html").ParseFiles(templates...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	outputFile := path.Join(bh.Output, trimPath(bh.Root, p))
-
-	out, err := createFile(outputFile)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
 
 	data, err := getTemplateData(p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if data != nil {
@@ -46,11 +39,13 @@ func (bh *BlogHead) compile(p string) error {
 		bh.saveDependencies(p, p[:len(p)-5]+"_meta.json")
 	}
 
-	if err := t.Execute(out, data); err != nil {
-		return err
+	var b []byte
+	buf := bytes.NewBuffer(b)
+	if err := t.Execute(buf, data); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return buf.Bytes(), nil
 }
 
 // Takes a text file as input and parses the text to determine what

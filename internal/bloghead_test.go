@@ -230,21 +230,16 @@ func TestFromEnv(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	type args struct {
-		root     string
-		output   string
-		filename string
-	}
 	tests := []struct {
 		name    string
-		args    args
+		args    string
 		wantErr bool
 	}{
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := Init(tt.args.root, tt.args.output, tt.args.filename); (err != nil) != tt.wantErr {
+			if err := Init(tt.args); (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
