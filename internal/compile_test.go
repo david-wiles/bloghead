@@ -2,7 +2,6 @@ package internal
 
 import (
 	"github.com/fsnotify/fsnotify"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -24,6 +23,7 @@ func TestBlogHead_compile(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
+		want    []byte
 		wantErr bool
 	}{
 		// TODO: Add test cases.
@@ -39,8 +39,13 @@ func TestBlogHead_compile(t *testing.T) {
 				templates:  tt.fields.templates,
 				watcher:    tt.fields.watcher,
 			}
-			if err := bh.compile(tt.args.p); (err != nil) != tt.wantErr {
+			got, err := bh.compile(tt.args.p)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("compile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("compile() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -86,32 +91,6 @@ func TestBlogHead_gatherTemplates(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("gatherTemplates() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_createFile(t *testing.T) {
-	type args struct {
-		p string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *os.File
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := createFile(tt.args.p)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("createFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createFile() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

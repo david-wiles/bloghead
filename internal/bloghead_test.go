@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -37,6 +37,40 @@ func makeTestBH(testName string) BHFields {
 		templates: make(map[string][]string),
 		watcher:   nil,
 	}
+}
+
+func unwrap(val interface{}, err error) interface{} {
+	if err != nil {
+		panic(err)
+	} else {
+		return val
+	}
+}
+
+// Tests whether two maps contain the same key->value pairs
+func mapsAreEqual(m1, m2 map[string][]string) bool {
+	if len(m1) != len(m2) {
+		return false
+	}
+
+	for k, v1 := range m1 {
+		// Loop over each value in v and compare
+		v2, ok := m2[k]
+		if !ok {
+			return false
+		}
+
+		sort.Strings(v1)
+		sort.Strings(v2)
+
+		for i := range v2 {
+			if v1[i] != v2[i] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func TestBlogHead_Start(t *testing.T) {
@@ -125,6 +159,8 @@ func TestBlogHead_Start(t *testing.T) {
 }
 
 func TestBlogHead_isHTMLPage(t *testing.T) {
+	cwd := unwrap(os.Getwd()).(string)
+
 	type args struct {
 		p    string
 		info os.FileInfo
@@ -135,7 +171,51 @@ func TestBlogHead_isHTMLPage(t *testing.T) {
 		args   args
 		want   bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:   "plain HTML file outside template directory",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:    path.Join(cwd, "../testdata/basic/index.html"),
+				info: unwrap(os.Stat(path.Join(cwd, "../testdata/basic/index.html"))).(os.FileInfo),
+			},
+			want: true,
+		},
+		{
+			name:   "HTML file within template directory",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:    path.Join(cwd, "../testdata/basic/.templates/head.html"),
+				info: unwrap(os.Stat(path.Join(cwd, "../testdata/basic/.templates/head.html"))).(os.FileInfo),
+			},
+			want: false,
+		},
+		{
+			name:   "non-HTML file outside template directory",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:    path.Join(cwd, "../testdata/basic/index_meta.json"),
+				info: unwrap(os.Stat(path.Join(cwd, "../testdata/basic/index_meta.json"))).(os.FileInfo),
+			},
+			want: false,
+		},
+		{
+			name:   "non-HTML file within template directory",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:    path.Join(cwd, "../testdata/basic/.templates/README"),
+				info: unwrap(os.Stat(path.Join(cwd, "../testdata/basic/.templates/README"))).(os.FileInfo),
+			},
+			want: false,
+		},
+		{
+			name:   "Directory in root folder",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:    path.Join(cwd, "../testdata/basic/.templates/some-folder"),
+				info: unwrap(os.Stat(path.Join(cwd, "../testdata/basic/some-folder"))).(os.FileInfo),
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,6 +236,12 @@ func TestBlogHead_isHTMLPage(t *testing.T) {
 }
 
 func TestBlogHead_saveDependencies(t *testing.T) {
+	existingDeps := map[string][]string{
+		"test1": []string{"file1", "file2"},
+		"test2": []string{"file2"},
+		"test3": []string{"file1", "file2", "file3"},
+	}
+
 	type args struct {
 		p         string
 		templates []string
@@ -164,20 +250,68 @@ func TestBlogHead_saveDependencies(t *testing.T) {
 		name   string
 		fields BHFields
 		args   args
+		want   map[string][]string
 	}{
-		// TODO: Add test cases.
+		{
+			name:   "An empty list will add no dependencies",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:         "test-path",
+				templates: []string{},
+			},
+			want: map[string][]string{},
+		},
+		{
+			name:   "A list of a single dependent will add a single dependency",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:         "test-path",
+				templates: []string{"test-dep"},
+			},
+			want: map[string][]string{
+				"test-dep": []string{"test-path"},
+			},
+		},
+		{
+			name:   "Multiple dependencies will add multiple entries",
+			fields: makeTestBH("basic"),
+			args: args{
+				p:         "test-path",
+				templates: []string{"test1", "test2", "test3"},
+			},
+			want: map[string][]string{
+				"test1": []string{"test-path"},
+				"test2": []string{"test-path"},
+				"test3": []string{"test-path"},
+			},
+		},
+		{
+			name: "Pre-existing dependencies will not be duplicated",
+			fields: BHFields{
+				templates: existingDeps,
+			},
+			args: args{
+				p:         "file1",
+				templates: []string{"test1", "test3"},
+			},
+			want: existingDeps,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//bh := &BlogHead{
-			//	Root:       tt.fields.Root,
-			//	Output:     tt.fields.Output,
-			//	tmplDir:    tt.fields.tmplDir,
-			//	configFile: tt.fields.configFile,
-			//	config:     tt.fields.config,
-			//	templates:  tt.fields.templates,
-			//	watcher:    tt.fields.watcher,
-			//}
+			bh := &BlogHead{
+				Root:       tt.fields.Root,
+				Output:     tt.fields.Output,
+				tmplDir:    tt.fields.tmplDir,
+				configFile: tt.fields.configFile,
+				config:     tt.fields.config,
+				templates:  tt.fields.templates,
+				watcher:    tt.fields.watcher,
+			}
+			bh.saveDependencies(tt.args.p, tt.args.templates...)
+			if !mapsAreEqual(bh.templates, tt.want) {
+				t.Errorf("Resulting dependencies are not equal. want = %+v, got = %+v", tt.want, bh.templates)
+			}
 		})
 	}
 }
@@ -208,60 +342,6 @@ func TestBlogHead_walkDependencies(t *testing.T) {
 			}
 			if err := bh.walkDependencies(tt.args.p, tt.args.walkFn); (err != nil) != tt.wantErr {
 				t.Errorf("walkDependencies() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestFromEnv(t *testing.T) {
-	tests := []struct {
-		name string
-		want *BlogHead
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := FromEnv(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FromEnv() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestInit(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := Init(tt.args); (err != nil) != tt.wantErr {
-				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_appendUnique(t *testing.T) {
-	type args struct {
-		list []string
-		val  string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := appendUnique(tt.args.list, tt.args.val); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("appendUnique() = %v, want %v", got, tt.want)
 			}
 		})
 	}

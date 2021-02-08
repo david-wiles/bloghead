@@ -20,12 +20,15 @@ func (bh *BlogHead) Save() error {
 // when a new page is added using the 'add' command.
 func (bh *BlogHead) Create(typ, name string) (err error) {
 	switch typ {
+	case "template":
+		err = bh.createTemplate(name)
 	case "blueprint":
 		err = bh.createBlueprint(name)
 	default:
 		errorStr := `Unknown type %v. Valid types are:
 
 blueprint - creates a new named blueprint to initialize pages with
+template  - create a blank template in the templates directory 
 `
 		err = errors.New(fmt.Sprintf(errorStr, typ))
 	}
@@ -33,6 +36,23 @@ blueprint - creates a new named blueprint to initialize pages with
 		return err
 	}
 	return err
+}
+
+// Create a template with the specified name
+// Simply generates the required markup so the compiler will be
+// able to correctly define the templates, the user must create the
+// HTML manually
+func (bh *BlogHead) createTemplate(name string) error {
+	tmplName := name + ".html"
+	f, err := createFile(path.Join(bh.tmplDir, tmplName))
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.WriteString("{{define \"" + tmplName + "\"}}\n\n{{end}}"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (bh *BlogHead) createBlueprint(name string) error {
@@ -65,7 +85,7 @@ func (bh *BlogHead) createBlueprint(name string) error {
 }
 
 // Adds a new page of 'typ' at 'path'
-func (bh *BlogHead) Add(typ, name, p string) (err error) {
+func (bh *BlogHead) Add(typ, p, name string) (err error) {
 	switch typ {
 	case "page":
 		err = bh.addNewPage(name, path.Join(bh.Root, p+".html"))
@@ -86,7 +106,8 @@ page - creates a new page at the specified path using the specified blueprint`
 // Creates a new generic web page based on the named template
 func (bh *BlogHead) addNewPage(name, p string) error {
 	// Check that a blueprint with the name exists
-	if _, ok := bh.config.Blueprints[name]; !ok {
+	// If name is an empty string, we should skip this and initialize an empty page
+	if _, ok := bh.config.Blueprints[name]; name != "" && !ok {
 		return errors.New("Could not find a blueprint named " + name + ". Did you remember to create it first?\n")
 	}
 
@@ -103,10 +124,13 @@ func (bh *BlogHead) addNewPage(name, p string) error {
 		return err
 	}
 
-	// Copy the blueprint page to the new path
-	html, err := ioutil.ReadFile(bh.config.Blueprints[name])
-	if err != nil {
-		return err
+	html := []byte("{{ define \"html\" }}\n\n{{ end }}")
+	if name != "" {
+		// Copy the blueprint page to the new path
+		html, err = ioutil.ReadFile(bh.config.Blueprints[name])
+		if err != nil {
+			return err
+		}
 	}
 
 	f, err := os.Create(p)

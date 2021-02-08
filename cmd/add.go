@@ -21,9 +21,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var blueprint string = ""
+
 // addCmd represents the add command
 var addCmd = &cobra.Command{
-	Use:   "add [type] [blueprint name] [page name]",
+	Use:   "add [type] [page name]",
 	Short: "Add a new page to your site",
 	Long: `A new page can be added from a bloghead default or a custom default.
 
@@ -32,23 +34,22 @@ blueprint to copy from, and the final argument is the name of the new page (the 
 extension will be added automatically.`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("Requires type, template, and name arguments")
+			return errors.New("Requires type and name arguments")
 		} else if len(args) == 1 {
-			return errors.New("Requires template and name arguments")
-		} else if len(args) == 2 {
-			return errors.New("Requires name argument")
+			return errors.New("Requires a name argument")
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		bh := internal.FromEnv()
-		if err := bh.Add(args[0], args[1], args[2]); err != nil {
+		if err := bh.Add(args[0], args[1], blueprint); err != nil {
 			println(err.Error())
 		}
 	},
 }
 
 func init() {
+	addCmd.Flags().StringVarP(&blueprint, "from", "f", "", "Specify the template to initialize the page with")
 	rootCmd.AddCommand(addCmd)
 
 	// Here you will define your flags and configuration settings.
