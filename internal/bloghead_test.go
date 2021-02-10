@@ -97,8 +97,7 @@ func TestBlogHead_Start(t *testing.T) {
 			want: func() bool {
 				// Expect the output directory to have a single file matching
 				// the test index.html string
-				want := `
-<!DOCTYPE html>
+				want := `<!DOCTYPE html>
 <html lang="en">
 
     <head>

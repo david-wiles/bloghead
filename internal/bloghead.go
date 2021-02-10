@@ -52,7 +52,7 @@ func FromEnv() *BlogHead {
 	return &BlogHead{
 		Root:       rootPath,
 		Output:     outPath,
-		tmplDir:    path.Join(rootPath, ".templates"),
+		tmplDir:    path.Join(rootPath, ".templates/") + "/",
 		configFile: viper.ConfigFileUsed(),
 		config:     config,
 		templates:  make(map[string][]string),
@@ -141,8 +141,10 @@ func promptUser(scanner *bufio.Scanner, value *string, prompt string) error {
 // Start compiling pages found in the root directory
 // Ignores the directory named '.templates'
 func (bh *BlogHead) Start() error {
-	if err := bh.writeFeed(); err != nil {
-		return err
+	if len(bh.config.Articles) != 0 {
+		if err := bh.writeFeed(); err != nil {
+			return err
+		}
 	}
 
 	return filepath.Walk(bh.Root, func(p string, info os.FileInfo, err error) error {
@@ -258,6 +260,8 @@ func (bh *BlogHead) watchFiles() {
 					}); err != nil {
 						println(err.Error())
 					}
+
+					// If the file was an article, re-compile the feed.xml file
 				}
 			}
 		case err, ok := <-bh.watcher.Errors:

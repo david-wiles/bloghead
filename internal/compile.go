@@ -21,12 +21,36 @@ func (bh *BlogHead) compile(p string) ([]byte, error) {
 
 	bh.saveDependencies(p, templates...)
 
-	templates = append(templates, p)
-
-	// Create a new named template from the html file
-	t, err := template.New("html").ParseFiles(templates...)
+	// Read page and prepare for template execution
+	text, err := ioutil.ReadFile(p)
 	if err != nil {
 		return nil, err
+	}
+
+	// Create a new named template from the html file
+	t, err := template.New("html").Parse("{{define \"html\"}}" + string(text) + "{{end}}")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse each template dependency
+	for _, tmpl := range templates {
+		text, err = ioutil.ReadFile(tmpl)
+		if err != nil {
+			return nil, err
+		}
+
+		t, err = t.Parse("{{define \"" + trimPath(bh.tmplDir, tmpl) + "\"}}" + string(text) + "{{end}}")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(templates) > 0 {
+		t, err = t.ParseFiles(templates...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	data, err := getTemplateData(p)
@@ -48,9 +72,9 @@ func (bh *BlogHead) compile(p string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Takes a text file as input and parses the text to determine what
-// templates are used in the file. Returns a string slice containing
-// the file path of each template
+// Recursively takes a text file as input and parses the text
+// to determine what templates are used in the file. Returns
+// a string slice containing the file path of each template
 func (bh *BlogHead) gatherTemplates(p string) ([]string, error) {
 	f, err := os.Open(p)
 	if err != nil {
@@ -71,7 +95,16 @@ func (bh *BlogHead) gatherTemplates(p string) ([]string, error) {
 	for _, match := range matches {
 		if len(match) > 1 {
 			templateFile := path.Join(bh.tmplDir, match[1])
-			filenames = append(filenames, templateFile)
+			filenames = appendUnique(filenames, templateFile)
+
+			tmpFiles, err := bh.gatherTemplates(templateFile)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, tf := range tmpFiles {
+				filenames = appendUnique(filenames, tf)
+			}
 		}
 	}
 

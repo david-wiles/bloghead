@@ -49,12 +49,12 @@ func (bh *BlogHead) writeFeed() error {
 		Subtitle: bh.config.SubTitle,
 		Links: []xmlLink{
 			{
-				Href: path.Join(bh.config.Domain, "feed.xml"),
+				Href: "https://" + path.Join(bh.config.Domain, "feed.xml"),
 				Rel:  "self",
 				Type: "application/atom+xml",
 			},
 			{
-				Href: bh.config.Domain,
+				Href: "https://" + bh.config.Domain,
 				Rel:  "alternate",
 				Type: "text/html",
 			},
@@ -80,7 +80,7 @@ func (bh *BlogHead) writeFeed() error {
 		feed.Entries = append(feed.Entries, xmlEntry{
 			Title: title,
 			Link: xmlLink{
-				Href: path.Join(bh.config.Domain, trimPath(bh.Root, page)),
+				Href: "https://" + path.Join(bh.config.Domain, trimPath(bh.Root, page)),
 			},
 			Updated: updated,
 			ID:      path.Join(bh.config.Domain, trimPath(bh.Root, page)),
@@ -91,7 +91,7 @@ func (bh *BlogHead) writeFeed() error {
 		})
 	}
 
-	f, err := os.Create(path.Join(bh.Output, "feed.xml"))
+	f, err := createFile(path.Join(bh.Output, "feed.xml"))
 	if err != nil {
 		return err
 	}
@@ -108,21 +108,10 @@ func (bh *BlogHead) writeFeed() error {
 func (bh *BlogHead) getArticleData(page string) (text, title, updated string, err error) {
 
 	// Get article metadata
-	meta := make(map[string]json.RawMessage)
 	b, err := ioutil.ReadFile(page[:len(page)-5] + "_meta.json")
 	if err != nil {
 		return text, title, updated, err
 	}
-
-	if err := json.Unmarshal(b, &meta); err != nil {
-		return "", "", "", err
-	}
-
-	var (
-		textBytes    []byte
-		titleBytes   []byte
-		updatedBytes []byte
-	)
 
 	// Make a temporary file to compile templates with
 	tmpF, err := os.Create(path.Join(os.TempDir(), "_tmp.html"))
@@ -132,10 +121,27 @@ func (bh *BlogHead) getArticleData(page string) (text, title, updated string, er
 	defer tmpF.Close()
 
 	if _, err := tmpF.WriteString(
-		fmt.Sprintf("{{define \"html\"}}{{template \"%v\"}}{{end}}", path.Join(".data", path.Base(page), "content.html"))); err != nil {
+		fmt.Sprintf("{{template \"%v\" .}}", path.Join(".data", path.Base(page), "content.html"))); err != nil {
 		return "", "", "", err
 	}
 
+	// Copy article metadata to temporary file
+	tmplData, err := os.Create(path.Join(os.TempDir(), "_tmp_meta.json"))
+	if err != nil {
+		return "", "", "", err
+	}
+	defer tmplData.Close()
+
+	if _, err = tmplData.Write(b); err != nil {
+		return "", "", "", err
+	}
+
+	meta := make(map[string]string)
+	if err := json.Unmarshal(b, &meta); err != nil {
+		return "", "", "", err
+	}
+
+	var textBytes []byte
 	textBytes, err = bh.compile(tmpF.Name())
 	if err != nil {
 		return "", "", "", err
@@ -144,17 +150,11 @@ func (bh *BlogHead) getArticleData(page string) (text, title, updated string, er
 	text = string(textBytes)
 
 	if m, ok := meta["title"]; ok {
-		if err := m.UnmarshalJSON(titleBytes); err != nil {
-			return "", "", "", err
-		}
-		title = string(titleBytes)
+		title = m
 	}
 
 	if m, ok := meta["updated"]; ok {
-		if err := m.UnmarshalJSON(updatedBytes); err != nil {
-			return "", "", "", err
-		}
-		updated = string(updatedBytes)
+		updated = m
 	}
 
 	return text, title, updated, nil

@@ -48,10 +48,7 @@ func (bh *BlogHead) createTemplate(name string) error {
 	if err != nil {
 		return err
 	}
-
-	if _, err := f.WriteString("{{define \"" + tmplName + "\"}}\n\n{{end}}"); err != nil {
-		return err
-	}
+	_ = f.Close()
 	return nil
 }
 
@@ -63,21 +60,11 @@ func (bh *BlogHead) createBlueprint(name string) error {
 
 	bp := path.Join(bh.tmplDir, "blueprints", name+".html")
 
-	// Ensure blueprints directory exists
-	if err := os.MkdirAll(path.Join(bh.tmplDir, "blueprints"), 0744); err != nil {
-		return err
-	}
-
-	f, err := os.Create(bp)
+	f, err := createFile(bp)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	// Write the required name of the template to the blueprint file
-	if _, err := f.WriteString("{{ define \"html\" }}\n{{ end }}"); err != nil {
-		return err
-	}
+	_ = f.Close()
 
 	bh.config.Blueprints[name] = bp
 
@@ -124,7 +111,7 @@ func (bh *BlogHead) addNewPage(name, p string) error {
 		return err
 	}
 
-	html := []byte("{{ define \"html\" }}\n\n{{ end }}")
+	html := []byte("")
 	if name != "" {
 		// Copy the blueprint page to the new path
 		html, err = ioutil.ReadFile(bh.config.Blueprints[name])
@@ -158,6 +145,13 @@ func (bh *BlogHead) addNewArticle(name, p string) error {
 	if err := bh.addDefaultMeta(p); err != nil {
 		return err
 	}
+
+	// Create empty file for content in .data
+	f, err := createFile(path.Join(bh.tmplDir, ".data", path.Base(p), "content.html"))
+	if err != nil {
+		return err
+	}
+	_ = f.Close()
 
 	if err := bh.createContentFile(p); err != nil {
 		return err
@@ -195,7 +189,11 @@ func (bh *BlogHead) addDefaultMeta(page string) error {
 	}
 
 	title := path.Base(page)
-	meta := &defaultMeta{title[:len(title)-5], time.Now().Format(time.RFC3339), bh.config.Domain + trimPath(bh.Root, page)}
+	meta := &defaultMeta{
+		title[:len(title)-5],
+		time.Now().Format(time.RFC3339),
+		path.Join(bh.config.Domain, trimPath(bh.Root, page)),
+	}
 
 	b, err := json.Marshal(meta)
 	if err != nil {
