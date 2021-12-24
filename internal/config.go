@@ -14,11 +14,11 @@ type BlogConfig struct {
 	Output string `json:"output"`
 
 	// author and site data
-	Author   string
-	Email    string
-	Domain   string
-	Title    string
-	SubTitle string
+	Author   string `json:"Author"`
+	Email    string `json:"Email"`
+	Domain   string `json:"Domain"`
+	Title    string `json:"Title"`
+	SubTitle string `json:"SubTitle"`
 
 	// meta data used within bloghead
 	Blueprints map[string]string `json:"blueprints"`

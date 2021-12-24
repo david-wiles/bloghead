@@ -24,11 +24,15 @@ import (
 var createCmd = &cobra.Command{
 	Use:   "create [type] [name]",
 	Short: "Create a new custom template page",
-	Long: `New templates must be of a predefined type. 
+	Long: `Create a new template of the predefined type and assign it a name. The type
+determines how the template will be used, and the assigned name should be
+used on the command line to identify the template. Possible types include:
 
-The type argument specifies the type of template and the name argument
-specifies the name of the template. When using the template to create
-a new page, the name will be used to specify the template.`,
+blueprint - used to initialize pages. Creates an html file in the 
+			templates/blueprints directory.
+template  - a blank template in the templates directory. Simply creates an
+			html file in the correct location to be found by the compiler
+`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("Requires type and name arguments")

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -209,6 +210,40 @@ func (bh *BlogHead) Watch() error {
 	go bh.watchFiles()
 	<-done
 
+	return nil
+}
+
+// Update the metadata value for this bloghead instance and save configuration.
+// If the key is not found, an error will occur
+func (bh *BlogHead) SetMetaValue(key, value string) error {
+	switch key {
+	case "Output":
+		bh.config.Output = value
+	case "Author":
+		bh.config.Author = value
+	case "Email":
+		bh.config.Email = value
+	case "Domain":
+		bh.config.Domain = value
+	case "Title":
+		bh.config.Title = value
+	case "SubTitle":
+		bh.config.SubTitle = value
+	default:
+		errString := `Unknown key %v. Possible values are:
+	Output 
+	Author 
+	Email  
+	Domain 
+	Title  
+	SubTitle
+`
+		return errors.New(fmt.Sprintf(errString, key))
+	}
+
+	if err := SaveConfig(bh.config, bh.configFile); err != nil {
+		return err
+	}
 	return nil
 }
 

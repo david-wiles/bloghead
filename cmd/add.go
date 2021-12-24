@@ -27,11 +27,13 @@ var blueprint string = ""
 var addCmd = &cobra.Command{
 	Use:   "add [type] [page name]",
 	Short: "Add a new page to your site",
-	Long: `A new page can be added from a bloghead default or a custom default.
+	Long: `Add a new page to the site using a predetermined type by creating necessary 
+html and data files. The type will determine how the page is compiled, 
+and the name should be an internal name for the page. Possible types are:
 
-The first argument is the type of page to add. Second argument is the name of the
-blueprint to copy from, and the final argument is the name of the new page (the .html 
-extension will be added automatically.`,
+page    - a standalone page
+article - a blog post used in a sequence of posts
+`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("Requires type and name arguments")
@@ -49,16 +51,6 @@ extension will be added automatically.`,
 }
 
 func init() {
-	addCmd.Flags().StringVarP(&blueprint, "from", "f", "", "Specify the template to initialize the page with")
+	addCmd.Flags().StringVarP(&blueprint, "blueprint", "b", "", "Specify the blueprint to initialize the page with")
 	rootCmd.AddCommand(addCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// addCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

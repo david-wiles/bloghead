@@ -72,16 +72,18 @@ func (bh *BlogHead) createBlueprint(name string) error {
 }
 
 // Adds a new page of 'typ' at 'path'
-func (bh *BlogHead) Add(typ, p, name string) (err error) {
+func (bh *BlogHead) Add(typ, name, bp string) (err error) {
 	switch typ {
 	case "page":
-		err = bh.addNewPage(name, path.Join(bh.Root, p+".html"))
+		err = bh.addNewPage(bp, path.Join(bh.Root, name+".html"))
 	case "article":
-		err = bh.addNewArticle(name, path.Join(bh.Root, p+".html"))
+		err = bh.addNewArticle(bp, path.Join(bh.Root, name+".html"))
 	default:
 		errorStr := `Unknown type %v. Valid types are:
 
-page - creates a new page at the specified path using the specified blueprint`
+page - creates a new page at the specified path using the specified blueprint
+article - a blog post used in a sequence of posts
+`
 		err = errors.New(fmt.Sprintf(errorStr, typ))
 	}
 	if err := bh.Save(); err != nil {
@@ -91,36 +93,36 @@ page - creates a new page at the specified path using the specified blueprint`
 }
 
 // Creates a new generic web page based on the named template
-func (bh *BlogHead) addNewPage(name, p string) error {
-	// Check that a blueprint with the name exists
-	// If name is an empty string, we should skip this and initialize an empty page
-	if _, ok := bh.config.Blueprints[name]; name != "" && !ok {
-		return errors.New("Could not find a blueprint named " + name + ". Did you remember to create it first?\n")
+func (bh *BlogHead) addNewPage(bp, name string) error {
+	// Check that a blueprint with the bp exists
+	// If bp is an empty string, we should skip this and initialize an empty page
+	if _, ok := bh.config.Blueprints[bp]; bp != "" && !ok {
+		return errors.New("Could not find a blueprint named " + bp + ". Did you remember to create it first?\n")
 	}
 
 	// Ensure that the directory exists
-	if err := os.MkdirAll(path.Dir(p), 0744); err != nil {
+	if err := os.MkdirAll(path.Dir(name), 0744); err != nil {
 		return err
 	}
 
 	// Check that a page doesn't already exist at the path
-	_, err := os.Stat(p)
+	_, err := os.Stat(name)
 	if err == nil {
-		return errors.New("Cannot create a page at " + p + ": already exists.")
+		return errors.New("Cannot create a page at " + name + ": already exists.")
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 
 	html := []byte("")
-	if name != "" {
+	if bp != "" {
 		// Copy the blueprint page to the new path
-		html, err = ioutil.ReadFile(bh.config.Blueprints[name])
+		html, err = ioutil.ReadFile(bh.config.Blueprints[bp])
 		if err != nil {
 			return err
 		}
 	}
 
-	f, err := os.Create(p)
+	f, err := os.Create(name)
 	if err != nil {
 		return err
 	}
@@ -135,49 +137,38 @@ func (bh *BlogHead) addNewPage(name, p string) error {
 // Creates a new article based on the named template and adds the
 // page to a list of articles. When the site is published, this article's
 // content is added to a feed.xml file entry
-func (bh *BlogHead) addNewArticle(name, p string) error {
+func (bh *BlogHead) addNewArticle(bp, name string) error {
 	// Copy the html page from the template
-	if err := bh.addNewPage(name, p); err != nil {
+	if err := bh.addNewPage(bp, name); err != nil {
 		return err
 	}
 
 	// Create a new meta.json for the page with date entries
-	if err := bh.addDefaultMeta(p); err != nil {
+	if err := bh.addDefaultMeta(name); err != nil {
 		return err
 	}
 
-	// Create empty file for content in .data
-	f, err := createFile(path.Join(bh.tmplDir, ".data", path.Base(p), "content.html"))
+	if err := bh.createContentFile(name); err != nil {
+		return err
+	}
+
+	cwd, err := os.Getwd()
 	if err != nil {
-		return err
-	}
-	_ = f.Close()
-
-	if err := bh.createContentFile(p); err != nil {
 		return err
 	}
 
 	// Add the page to articles list
-	bh.config.Articles = appendUnique(bh.config.Articles, p)
+	bh.config.Articles = appendUnique(bh.config.Articles, "."+trimPath(cwd, name))
 	return nil
 }
 
-func (bh *BlogHead) createContentFile(p string) error {
-	if err := os.MkdirAll(path.Join(bh.tmplDir, ".data", path.Base(p)), 0744); err != nil {
-		return err
-	}
-
-	// Create content.html file in .data
-	f, err := os.Create(path.Join(bh.tmplDir, ".data", path.Base(p), "content.html"))
+func (bh *BlogHead) createContentFile(name string) error {
+	// Create empty file for content in .data
+	f, err := createFile(path.Join(bh.tmplDir, ".data", path.Base(name), "content.html"))
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	if _, err := f.WriteString("{{ define \"" + path.Join(".data", path.Base(p), "content.html") + "\" }}\n{{ end }}"); err != nil {
-		return err
-	}
-
+	_ = f.Close()
 	return nil
 }
 
